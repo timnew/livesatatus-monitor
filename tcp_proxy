@@ -1,0 +1,28 @@
+#! /usr/bin/env coffee
+
+net = require 'net'
+
+server = net.createServer (c) ->
+	console.log 'An incomming connection'
+
+	s = net.connect 
+		path: '/usr/local/groundwork/nagios/var/rw/live'
+
+	c.setEncoding 'utf8'
+	s.setEncoding 'utf8'
+	s.resume()
+
+	c.on 'data', (data) ->
+		s.write data
+		console.log data
+
+	s.on 'data', (data) ->
+		c.write data
+		console.log data
+
+
+	c.on 'end', ->
+		console.log 'Connection Ended'
+		s.end()
+
+server.listen 8060
