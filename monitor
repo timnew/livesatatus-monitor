@@ -1,0 +1,16 @@
+#! /usr/bin/env ruby
+require 'socket'
+
+require './lib/livestatus_monitor'
+
+request = Request
+  .get('services')
+  .filter('host_name = TW-BJ-ASA')
+  .filter('description = check_snmp_asa_traffic_bps_with_error')
+  .column(%w{host_name description state perf_data})
+  .column_headers(true)
+  .output_format(:json)
+
+socket = TCPSocket.new '10.18.9.4', 8060
+
+puts request.submit_and_parse(socket)
