@@ -25,4 +25,7 @@ server = net.createServer (c) ->
 		console.log 'Connection Ended'
 		s.end()
 
-server.listen 8060
+port = 8060
+
+server.listen port
+console.log "Proxy is listening to #{port}..."
