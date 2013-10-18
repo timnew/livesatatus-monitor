@@ -1,0 +1,38 @@
+require 'socket'
+require 'pry'
+require './lib/livestatus_monitor'
+require 'serialport'
+require 'colorist'
+
+task :default do 
+	port_file = "/dev/cu.usbserial-A9SZBD1X" 
+	port = SerialPort.new port_file, baud_rate: 9600, data_bits: 8, stop_bits: 1, parity: SerialPort::NONE
+
+	request = Request
+	  .get('services')
+	  .filter('host_name = TW-BJ-ASA')
+	  .filter('description = check_snmp_asa_traffic_bps_with_error')
+	  .column(%w{host_name description state perf_data})
+	  .column_headers(true)
+	  .output_format(:json)
+
+	while(true) do
+		socket = TCPSocket.new '10.18.9.4', 8060
+
+		response = request.submit_and_parse(socket).first
+
+		puts response.performance
+		
+		color = case response.performance[:in_percentage]
+				when 0..69
+					'lime'.to_color
+				when 70..89
+					'blue'.to_color
+				when 89..100
+					'red'.to_color
+				end
+
+		port.write "LED+RGB=#{color.r},#{color.g},#{color.b}\r"
+		sleep(1)
+	end
+end
