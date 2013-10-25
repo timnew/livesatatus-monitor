@@ -4,10 +4,11 @@ require './lib/livestatus_monitor'
 require 'serialport'
 require 'colorist'
 
-def run(port_file, options)
+def run(port, options)
 	options.symbolize_keys!
 
 	#'/dev/cu.usbserial-A9SZBD1X'
+	port_file = "/dev/#{port}"
 	port = SerialPort.new port_file, baud_rate: 9600, data_bits: 8, stop_bits: 1, parity: SerialPort::NONE
 
 	# request = Request
@@ -58,12 +59,12 @@ end
 
 
 task :staging, :port do | _, args| 
-	args.with_defaults port: '/dev/ttyUSB0'
+	args.with_defaults port: 'ttyUSB0'
 	run args.port, host: 'TW-BJ-ASA', service: 'check_snmp_asa_traffic_bps_with_error', ip: '10.18.9.4'
 end
 
 task :production, :port do | _, args| 
-	args.with_defaults port: '/dev/ttyUSB0'
+	args.with_defaults port: 'ttyUSB0'
 	run args.port, host: 'PEK_FW_1', service: 'check_asa_traffic_outside2', ip: '10.18.9.5'
 end
 
