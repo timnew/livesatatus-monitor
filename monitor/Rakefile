@@ -4,6 +4,39 @@ require './lib/livestatus_monitor'
 require 'serialport'
 require 'colorist'
 
+module IRIndicator
+	def process_data(traffic)
+		command = case traffic
+		when 0..69
+			0xFF10EF # Green
+		when 70..89
+			0xFFB04F # Organge
+		when 90..100
+			0xFF906F # Red
+		end
+
+		write "IR+NEC="
+		write [command, 32].pack('L<S<')
+		write "\n"				
+	end
+end
+
+module LedIndicator
+	def process_data(traffic)
+		color = case traffic
+			when 0..69
+				'lime'.to_color
+			when 70..89
+				'blue'.to_color
+			when 89..100
+				'red'.to_color
+			end
+
+		write "LED+RGB=#{color.r},#{color.g},#{color.b}\n"		
+	end
+end
+
+
 def run(port, options)
 	options.symbolize_keys!
 
@@ -11,21 +44,24 @@ def run(port, options)
 	port_file = "/dev/#{port}"
 	port = SerialPort.new port_file, baud_rate: 9600, data_bits: 8, stop_bits: 1, parity: SerialPort::NONE
 
-	# request = Request
-	#   .get('services')
-	#   .filter('host_name = TW-BJ-ASA')
-	#   .filter('description = check_snmp_asa_traffic_bps_with_error')
-	#   .column(%w{host_name description state perf_data})
-	#   .column_headers(true)
-	#   .output_format(:json)
+	while(res = port.gets.strip)
+		puts res
+		break if res == 'LED:Ready'		
+	end
 
-	# request = Request
-	#   .get('services')
-	#   .filter('host_name = PEK_FW_1')
-	#   .filter('description = check_asa_traffic_outside2')
-	#   .column(%w{host_name description state perf_data})
-	#   .column_headers(true)
-	#   .output_format(:json)
+	port.write "BOARD+VERSION?\n"
+	version = port.gets.match(/BOARD\+VERSION:(?<version>.*)/)[:version].strip
+
+	case version 
+	when 'LED,1'
+		puts "LED BOARD"
+		port.extend LedIndicator
+	when  'IR,1'
+		puts "IR BOARD"
+		port.extend IRIndicator
+	else
+		raise "ERROR: Invalid Board:#{version}"
+	end
 
 	request = Request
 	  .get('services')
@@ -43,17 +79,11 @@ def run(port, options)
 
 		puts response.performance
 		
-		color = case response.performance[:in_percentage]
-				when 0..69
-					'lime'.to_color
-				when 70..89
-					'blue'.to_color
-				when 89..100
-					'red'.to_color
-				end
+		port.process_data  response.performance[:in_percentage]
 
-		port.write "LED+RGB=#{color.r},#{color.g},#{color.b}\r"
-		sleep(1)
+		puts port.gets
+				
+		sleep(2)
 	end
 end
 
